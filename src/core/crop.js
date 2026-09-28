@@ -15,7 +15,8 @@ const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.
  * @param {Buffer} buffer 扫描图
  * @param {{cx,cy,w,h,angle,rot?}} box 检测/手调后的框（原图像素坐标，angle 为度；
  *   rot 为输出内容的旋转角 0/90/180/270 —— 扫描时倒放/横放的相纸转正）
- * @param {object} o expandPct: 外扩百分比（补白边余量，默认 1）
+ * @param {object} o expandPct: 第一步留白 %（选区四周外扩，越界补白，默认 1）
+ *   ratio: [宽,高] 方案输出画幅 —— 第二步把裁剪结果 contain 进该比例白底画幅（长边=outLong）
  *   outLong: 输出长边像素（固定分辨率，默认 1600）
  *   rotate: 整批统一输出旋转（0/90/180/270，优先于 box.rot）
  *   format: 'jpeg'|'png'，quality
@@ -53,18 +54,49 @@ async function cropPrint(buffer, box, o = {}) {
   const pad = 1 + expandPct / 100;
   const cw = Math.max(8, Math.round(box.w * pad));
   const ch = Math.max(8, Math.round(box.h * pad));
-  const left = Math.max(0, Math.min(W2 - cw, Math.round(cx2 - cw / 2)));
-  const top = Math.max(0, Math.min(H2 - ch, Math.round(cy2 - ch / 2)));
+  // 留白窗口以框为中心、不 clamp：越出扫描边界的部分用白底补齐，四边留白始终均匀
+  const left = Math.round(cx2 - cw / 2);
+  const top = Math.round(cy2 - ch / 2);
+  const visL = Math.max(0, left), visT = Math.max(0, top);
+  const visR = Math.min(W2, left + cw), visB = Math.min(H2, top + ch);
+  if (visR - visL < 8 || visB - visT < 8) throw new Error('裁剪窗口完全超出扫描图');
 
-  // 固定分辨率：长边 = outLong，等比（fit:fill 保持框比例，不被裁）
-  const scale = outLong / Math.max(cw, ch);
-  const outW = Math.max(1, Math.round(cw * scale));
-  const outH = Math.max(1, Math.round(ch * scale));
-
-  const pipe = sharp(buffer)
+  // 只对扫描图内的可见部分做旋转+抠图（无损中转，尺寸=裁剪区域）
+  const cropArea = await sharp(buffer)
     .rotate(angleDeg, { background: { r: 255, g: 255, b: 255 } })
-    .extract({ left, top, width: cw, height: ch })
-    .resize(outW, outH, { fit: 'fill' });
+    .extract({ left: visL, top: visT, width: visR - visL, height: visB - visT })
+    .png().toBuffer();
+  // 越界部分补白
+  const padL = visL - left, padT = visT - top;
+  const padR = (left + cw) - visR, padB = (top + ch) - visB;
+  let windowed = sharp(cropArea);
+  if (padL > 0 || padT > 0 || padR > 0 || padB > 0) {
+    windowed = windowed.extend({
+      left: padL, top: padT, right: padR, bottom: padB,
+      background: { r: 255, g: 255, b: 255 },
+    });
+  }
+
+  // ---- 第二步：输出归一 ----
+  // 给了方案比例（o.ratio=[宽,高]）→ 输出画幅固定为该比例：裁剪结果 contain 居中放到
+  // 白色画幅上，缺的部分留白 —— 选区比例与输出比例没有必然联系，选区只负责「剪出来」。
+  // 没给比例 → 输出保持选区比例，长边 = outLong。
+  let outW, outH, pipe;
+  if (Array.isArray(o.ratio) && o.ratio.length === 2 && o.ratio[0] > 0 && o.ratio[1] > 0) {
+    const [rw, rh] = o.ratio;
+    const canvasW = rw >= rh ? outLong : Math.round(outLong * rw / rh);
+    const canvasH = rw >= rh ? Math.round(outLong * rh / rw) : outLong;
+    // 裁剪结果 contain 装进画幅，gravity 居中贴到白底画幅上（png 中转无损）
+    const innerBuf = await windowed.resize(canvasW, canvasH, { fit: 'inside' }).png().toBuffer();
+    outW = canvasW; outH = canvasH;
+    pipe = sharp({ create: { width: canvasW, height: canvasH, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([{ input: innerBuf, gravity: 'centre' }]);
+  } else {
+    const scale = outLong / Math.max(cw, ch);
+    outW = Math.max(1, Math.round(cw * scale));
+    outH = Math.max(1, Math.round(ch * scale));
+    pipe = windowed.resize(outW, outH, { fit: 'fill' });
+  }
 
   if (!rot90) {
     const out = format === 'png' ? await pipe.png().toBuffer() : await pipe.jpeg({ quality }).toBuffer();

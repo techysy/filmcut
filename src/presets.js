@@ -10,14 +10,14 @@ const crypto = require('crypto');
 
 /** 内置方案：ratio 为「框选比例」[宽,高]（手动框选时锁定），outLong 固定输出长边 */
 const BUILT_INS = [
-  { name: 'Instax Mini · 整张相纸', ratio: [54, 86], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 1, format: 'jpeg', quality: 92 },
+  { name: 'Instax Mini · 整张相纸', ratio: [54, 86], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 10, format: 'jpeg', quality: 92 },
   { name: 'Instax Mini · 画面区', ratio: [46, 62], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },
-  { name: 'Instax Square', ratio: [62, 62], outLong: 1800, tolerance: 28, minAreaPct: 0.4, expandPct: 1, format: 'jpeg', quality: 92 },
-  { name: 'Instax Wide · 整张相纸', ratio: [108, 86], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 1, format: 'jpeg', quality: 92 },
+  { name: 'Instax Square', ratio: [62, 62], outLong: 1800, tolerance: 28, minAreaPct: 0.4, expandPct: 10, format: 'jpeg', quality: 92 },
+  { name: 'Instax Wide · 整张相纸', ratio: [108, 86], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 10, format: 'jpeg', quality: 92 },
   { name: 'Instax Wide · 画面区', ratio: [99, 62], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },
-  { name: 'Polaroid 600 · 整张相纸', ratio: [88, 107], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 1, format: 'jpeg', quality: 92 },
+  { name: 'Polaroid 600 · 整张相纸', ratio: [88, 107], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 10, format: 'jpeg', quality: 92 },
   { name: 'Polaroid 600 · 画面区', ratio: [79, 79], outLong: 2000, tolerance: 28, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },
-  { name: 'Polaroid Go · 整张相纸', ratio: [53, 71], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 1, format: 'jpeg', quality: 92 },
+  { name: 'Polaroid Go · 整张相纸', ratio: [53, 71], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 10, format: 'jpeg', quality: 92 },
   { name: 'Polaroid Go · 画面区', ratio: [34, 42], outLong: 1600, tolerance: 28, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },
   { name: '135 胶片单帧（横）', ratio: [3, 2], outLong: 2400, tolerance: 20, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },
   { name: '135 胶片单帧（竖）', ratio: [2, 3], outLong: 2400, tolerance: 20, minAreaPct: 0.4, expandPct: 0, format: 'jpeg', quality: 92 },

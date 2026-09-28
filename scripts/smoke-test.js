@@ -80,6 +80,31 @@ async function main() {
     assert.ok(Math.abs(r.width - 500 * 250 / 350) <= 1);
   });
 
+  await t('留白越界补白：相纸贴扫描边时四边留白仍均匀', async () => {
+    // 相纸中心贴近扫描图右边界，外扩窗口越界 → 右侧必须补白而不是被截断
+    const png = await drawTiltedRect(1000, 800, { cx: 900, cy: 90, w: 200, h: 140 }, 0);
+    const r = await cropPrint(png, { cx: 900, cy: 90, w: 200, h: 140, angle: 0 }, { outLong: 1000, expandPct: 10 });
+    assert.strictEqual(Math.max(r.width, r.height), 1000);
+    const { data, info } = await sharp(r.buffer).raw().toBuffer({ resolveWithObject: true });
+    const px = (x, y) => data[(y * info.width + x) * info.channels];
+    assert.ok(px(info.width - 5, Math.round(info.height / 2)) > 200, '右缘应为补白（截断实现这里会是相纸）');
+    assert.ok(px(Math.round(info.width / 2), Math.round(info.height / 2)) < 120, '中心应为相纸');
+  });
+
+  await t('两步模型：选区比例 ≠ 方案比例时，输出归一到方案画幅（留白补齐）', async () => {
+    // 横版选区（2:1）配竖版方案（54:86）：输出必须是 54:86 画幅、相纸居中、上下大量留白
+    const png = await drawTiltedRect(1200, 700, { cx: 600, cy: 350, w: 400, h: 200 }, 0);
+    const r = await cropPrint(png, { cx: 600, cy: 350, w: 400, h: 200, angle: 0 },
+      { outLong: 1600, expandPct: 0, ratio: [54, 86] });
+    assert.strictEqual(r.width, Math.round(1600 * 54 / 86));
+    assert.strictEqual(r.height, 1600);
+    const { data, info } = await sharp(r.buffer).raw().toBuffer({ resolveWithObject: true });
+    const px = (x, y) => data[(y * info.width + x) * info.channels];
+    // 画幅上部（相纸之外）应为留白；中线应为相纸
+    assert.ok(px(Math.round(info.width / 2), 8) > 200, '画幅顶部应为留白');
+    assert.ok(px(Math.round(info.width / 2), Math.round(info.height / 2)) < 120, '中线应为相纸');
+  });
+
   console.log('[2] 相纸方案存储');
   await t('内置方案播种 + 新增/编辑/删除持久化', async () => {
     const file = path.join(TMP, 'presets.json');

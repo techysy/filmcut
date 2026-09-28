@@ -32,8 +32,8 @@ function renderPresets() {
   if (!state.presets.length) sel.innerHTML = '<option value="">（还没有方案，点「＋ 新建方案」）</option>';
   const p = curPreset();
   $('preset-summary').textContent = p
-    ? `框选比例 ${p.ratio[0]}:${p.ratio[1]} · 输出长边 ${p.outLong}px · 容差 ${p.tolerance} · 外扩 ${p.expandPct}% · ${p.format.toUpperCase()}`
-    : '先选一个相纸方案：它决定框选比例、白底容差与固定输出分辨率';
+    ? `输出画幅 ${p.ratio[0]}:${p.ratio[1]} · 输出长边 ${p.outLong}px · 容差 ${p.tolerance} · 留白 ${p.expandPct}% · ${p.format.toUpperCase()}`
+    : '先选一个相纸方案：它决定输出画幅与固定分辨率，检测时也按这个比例过滤非相纸区域';
   $('run-batch').disabled = !p;
 }
 
@@ -49,7 +49,7 @@ function openEditor(p) {
   $('preset-ratio').value = p ? p.ratio.join(':') : '';
   $('preset-outlong').value = p ? p.outLong : 1600;
   $('preset-tol').value = p ? p.tolerance : 28;
-  $('preset-expand').value = p ? p.expandPct : 1;
+  $('preset-expand').value = p ? p.expandPct : 10;
   $('preset-format').value = p ? p.format : 'jpeg';
   $('preset-name').dataset.id = p ? p.id : '';
 }
