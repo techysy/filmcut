@@ -1,6 +1,9 @@
 'use strict';
 /* FilmCut 裁片 — 前端逻辑：方案管理 / 目录浏览 / 画布框选微调 / 单张裁剪 / 批量进度 */
 const $ = (id) => document.getElementById(id);
+const native = window.filmcutDesktop || null; // Electron 桌面壳桥接（纯浏览器环境为 null）
+// GitHub 项目主页图标（Lucide 线性风格，与 ImgMark 同款）
+const GITHUB_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>';
 const state = {
   presets: [],
   presetId: null,
@@ -451,6 +454,20 @@ async function pollJob(jobId) {
 
 // ---------- 初始化 ----------
 function init() {
+  $('btn-home').innerHTML = GITHUB_SVG;
+  // 桌面壳：原生选目录对话框（网页版仍是手输绝对路径 + 浏览）
+  if (native) {
+    $('scan-dir-pick').classList.remove('hidden');
+    $('scan-dir-pick').addEventListener('click', async () => {
+      const dir = await native.pickFolder('选择扫描件文件夹');
+      if (dir) { $('scan-dir').value = dir; browse(dir); }
+    });
+    $('outdir-pick').classList.remove('hidden');
+    $('outdir-pick').addEventListener('click', async () => {
+      const dir = await native.pickFolder('选择裁剪输出文件夹');
+      if (dir) $('opt-outdir').value = dir;
+    });
+  }
   $('preset-select').addEventListener('change', (e) => {
     state.presetId = e.target.value || null;
     renderPresets();

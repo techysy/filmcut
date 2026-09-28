@@ -17,6 +17,10 @@ header { display: flex; align-items: center; justify-content: space-between; pad
 .logo-emoji { font-size: 26px; }
 .title { font-size: 17px; font-weight: 700; }
 .ver { font-size: 12px; color: var(--muted); }
+.icon-btn { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center;
+  border-radius: 8px; color: var(--muted); margin-left: 2px; }
+.icon-btn:hover { background: var(--surface-2); color: var(--txt); }
+.icon-btn svg { width: 18px; height: 18px; }
 
 main { display: flex; gap: 18px; padding: 0 22px; align-items: flex-start; }
 .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

@@ -1,0 +1,59 @@
+{
+  "name": "filmcut-desktop",
+  "productName": "FilmCut",
+  "version": "0.1.0",
+  "description": "FilmCut 裁片 桌面壳（Windows）",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron .",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "cn.techysy.filmcut",
+    "productName": "FilmCut",
+    "directories": {
+      "output": "dist",
+      "buildResources": "."
+    },
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "icon.png"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "FilmCut-Setup-${version}.${ext}",
+      "shortcutName": "FilmCut"
+    },
+    "portable": {
+      "artifactName": "FilmCut-Portable-${version}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "filmcut/server"
+      }
+    ]
+  }
+}

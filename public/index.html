@@ -14,6 +14,7 @@
       <div class="title">FilmCut 裁片</div>
       <div class="ver" id="app-ver">胶片 / 拍立得 / 宝丽来 扫描裁剪</div>
     </div>
+    <a class="icon-btn" id="btn-home" href="https://github.com/techysy/filmcut" target="_blank" rel="noopener" title="GitHub 项目主页" aria-label="GitHub 项目主页"></a>
   </div>
 </header>
 
@@ -47,6 +48,7 @@
     <div class="card">
       <h2>② 批量输出 <small>扫描目录整批：自动检测 → 摆正 → 按方案裁剪</small></h2>
       <label>输出目录（绝对路径）<input type="text" id="opt-outdir" class="path-input" placeholder="留空 = 扫描目录下的 filmcut/"></label>
+      <button id="outdir-pick" class="btn hidden">选择文件夹</button>
       <label class="check"><input type="checkbox" id="opt-recursive"> 包含子目录</label>
       <label class="check"><input type="checkbox" id="opt-skipdone" checked> 跳过已处理（输出里已有同名-1 产物）</label>
       <label>输出旋转（整批转正，倒放/横放的相纸）<select id="opt-rotate">
@@ -67,6 +69,7 @@
       <h2>① 扫描件 <small>选目录 → 点文件载入画布；检测框可拖动/旋转，也可拖出新框</small></h2>
       <div class="row-inline">
         <input type="text" id="scan-dir" class="path-input" placeholder="扫描目录（绝对路径），如 C:\scans">
+        <button id="scan-dir-pick" class="btn hidden">选择文件夹</button>
         <button id="dir-browse" class="btn ghost">浏览</button>
       </div>
       <div id="dir-browser" class="browser hidden">
