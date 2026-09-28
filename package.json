@@ -1,0 +1,14 @@
+{
+  "name": "filmcut",
+  "version": "0.1.0",
+  "description": "FilmCut 裁片 — 胶片/拍立得/宝丽来扫描件裁剪：白底自动检测相纸、自动摆正、按相纸方案固定分辨率输出",
+  "main": "src/core/detect.js",
+  "bin": { "filmcut": "bin/filmcut.js" },
+  "scripts": { "start": "node src/server.js", "test": "node scripts/smoke-test.js" },
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "sharp": "^0.33.5"
+  }
+}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmCut 裁片 · 胶片/拍立得/宝丽来扫描裁剪</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo-emoji">🎞️</span>
+    <div>
+      <div class="title">FilmCut 裁片</div>
+      <div class="ver" id="app-ver">胶片 / 拍立得 / 宝丽来 扫描裁剪</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="col side">
+    <!-- ⓪ 相纸方案 -->
+    <div class="card">
+      <h2>⓪ 相纸方案 <small>比例 / 输出分辨率固定下来，同一种相纸一直用</small></h2>
+      <select id="preset-select"></select>
+      <div id="preset-summary" class="notes"></div>
+      <div id="preset-editor" class="hidden">
+        <label>名称 <input type="text" id="preset-name" maxlength="40"></label>
+        <label>框选比例（宽:高）<input type="text" id="preset-ratio" placeholder="54:86"></label>
+        <label>输出长边 px <input type="number" id="preset-outlong" min="64" max="8000" value="1600"></label>
+        <label>白底容差 <input type="number" id="preset-tol" min="1" max="128" value="28"></label>
+        <label>外扩 % <input type="number" id="preset-expand" min="0" max="20" value="1"></label>
+        <label>格式 <select id="preset-format"><option value="jpeg">JPEG</option><option value="png">PNG</option></select></label>
+        <div class="row-inline" style="margin-top:8px">
+          <button id="preset-save" class="btn tiny primary">保存方案</button>
+          <button id="preset-cancel" class="btn tiny ghost">取消</button>
+        </div>
+      </div>
+      <div class="row-inline">
+        <button id="preset-new" class="btn tiny">＋ 新建方案</button>
+        <button id="preset-edit" class="btn tiny">编辑</button>
+        <button id="preset-del" class="btn tiny ghost">删除</button>
+      </div>
+    </div>
+
+    <!-- ② 批量输出 -->
+    <div class="card">
+      <h2>② 批量输出 <small>扫描目录整批：自动检测 → 摆正 → 按方案裁剪</small></h2>
+      <label>输出目录（绝对路径）<input type="text" id="opt-outdir" class="path-input" placeholder="留空 = 扫描目录下的 filmcut/"></label>
+      <label class="check"><input type="checkbox" id="opt-recursive"> 包含子目录</label>
+      <label class="check"><input type="checkbox" id="opt-skipdone" checked> 跳过已处理（输出里已有同名-1 产物）</label>
+      <div class="row-inline">
+        <button id="run-batch" class="btn primary big" disabled>开始批量裁剪</button>
+      </div>
+      <div class="progress"><div id="bar"></div></div>
+      <div id="job-summary" class="muted">空闲</div>
+      <div id="job-log" class="log"></div>
+    </div>
+  </section>
+
+  <section class="col main-col">
+    <!-- ① 扫描件 -->
+    <div class="card">
+      <h2>① 扫描件 <small>选目录 → 点文件载入画布；检测框可拖动/旋转，也可拖出新框</small></h2>
+      <div class="row-inline">
+        <input type="text" id="scan-dir" class="path-input" placeholder="扫描目录（绝对路径），如 C:\scans">
+        <button id="dir-browse" class="btn ghost">浏览</button>
+      </div>
+      <div id="dir-browser" class="browser hidden">
+        <div class="crumbs" id="dir-crumbs"></div>
+        <div id="dir-entries" class="entries"></div>
+      </div>
+      <div id="file-list" class="file-list"><span class="muted">未选择目录</span></div>
+    </div>
+
+    <!-- 画布工作台 -->
+    <div class="card">
+      <h2>画布 <small>点框选中；框内拖动=移动；空白处拖动=按方案比例新建框</small></h2>
+      <div id="canvas-wrap" class="canvas-wrap empty">
+        <span id="canvas-hint" class="muted">先在上方选择一张扫描图</span>
+        <img id="scan-img" alt="扫描图" hidden>
+        <div id="box-layer"></div>
+      </div>
+      <div id="box-tools" class="row-inline hidden">
+        <span class="muted">选中框</span>
+        <label>旋转 <b id="angle-v">0</b>°<input type="range" id="box-angle" min="-20" max="20" value="0" step="0.5"></label>
+        <button id="box-crop" class="btn tiny primary">裁剪预览</button>
+        <button id="box-del" class="btn tiny ghost">删除此框</button>
+        <button id="box-redetect" class="btn tiny ghost">恢复自动检测</button>
+      </div>
+      <div id="crop-preview" class="crop-preview hidden">
+        <img id="crop-img" alt="裁剪结果">
+        <div class="crop-meta">
+          <div id="crop-info" class="notes"></div>
+          <div class="row-inline">
+            <button id="crop-save" class="btn tiny primary">保存到输出目录</button>
+          </div>
+        </div>
+      </div>
+      <div id="hint" class="notes"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="page-footer">FilmCut · 白底自动检测相纸 · 自动摆正 · 按相纸方案固定分辨率 · 局域网/本机工具，无鉴权</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
