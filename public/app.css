@@ -44,6 +44,7 @@ input:focus, select:focus { outline: none; border-color: var(--pri); }
 .btn.primary:hover { background: var(--pri-dk); }
 .btn.primary:disabled, .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.ghost { background: transparent; }
+.btn.on { background: var(--pri); border-color: var(--pri); color: #fff; }
 .btn.big { font-size: 14px; padding: 9px 20px; }
 .btn.tiny { padding: 3px 10px; font-size: 12px; }
 .muted { color: var(--muted); }
@@ -78,6 +79,11 @@ input:focus, select:focus { outline: none; border-color: var(--pri); }
 #box-layer .box.on .tag { background: #e11d48; }
 #box-layer .box.dragnew { border-style: dashed; opacity: .85; cursor: crosshair; }
 .canvas-wrap.picking #box-layer { cursor: crosshair; }
+/* 参考线：沿相纸边拉的摆正基准线（拉线中虚线，确定后实线保留在画布上） */
+#box-layer .refline { position: absolute; height: 0; border-top: 2px solid #f59e0b;
+  transform-origin: 0 0; pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.55); }
+#box-layer .refline.preview { border-top-style: dashed; opacity: .8; }
 
 #box-tools { align-items: center; }
 #box-tools label { display: flex; align-items: center; gap: 6px; margin: 0; }

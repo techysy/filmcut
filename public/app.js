@@ -125,6 +125,7 @@ async function loadScan(path) {
   state.currentFile = null;
   state.boxes = [];
   state.selected = -1;
+  state.refLine = null;
   $('canvas-wrap').classList.remove('empty');
   $('canvas-hint').textContent = '载入中…';
   const img = $('scan-img');
@@ -144,10 +145,11 @@ async function redetect() {
   try {
     const r = await api('/api/detect', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: state.currentFile.path, presetId: state.presetId }),
+      body: JSON.stringify({ path: state.currentFile.path, presetId: state.presetId, ignoreRatio: $('opt-mixed').checked }),
     });
     state.boxes = r.boxes.map((b, i) => ({ ...b, id: i + 1 }));
     state.selected = state.boxes.length ? 0 : -1;
+    state.refLine = null; // 重新检测后旧的参考线不再成立
     $('canvas-hint').textContent = state.boxes.length
       ? `检测到 ${state.boxes.length} 张相纸（容差 ${p ? p.tolerance : 28}）。可拖动微调，空白处拖出新框。`
       : '未检测到相纸：把相纸放在白纸上重新扫描，或调大方案里的「白底容差」，也可空白处手动拖框。';
@@ -183,6 +185,7 @@ function renderBoxes(dragBox) {
   };
   state.boxes.forEach((b, i) => draw(b, i));
   if (dragBox) draw(dragBox, state.boxes.length, 'dragnew');
+  renderRefLine();
   syncBoxTools();
 }
 
@@ -192,6 +195,7 @@ function syncBoxTools() {
   if (b) {
     $('box-angle').value = b.angle || 0;
     $('angle-v').textContent = (b.angle || 0).toFixed(1);
+    $('box-rot').value = String(b.rot || 0);
   }
 }
 
@@ -216,9 +220,16 @@ function hitBox(e) {
 $('box-layer').addEventListener('mousedown', (e) => {
   if (!state.currentFile) return;
   e.preventDefault();
-  const i = hitBox(e);
   const p = canvasPoint(e);
   if (!p) return;
+  // 参考线模式优先：沿相纸边拉一条线，松手按这条线摆正选中的框
+  if (refLineMode) {
+    if (state.selected < 0) { $('hint').textContent = '先点框选中一张相纸，再拉参考线'; return; }
+    refDrag = { start: p };
+    state.refLine = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, angle: 0, preview: true };
+    return;
+  }
+  const i = hitBox(e);
   if (i >= 0) {
     state.selected = i;
     const b = state.boxes[i];
@@ -232,6 +243,13 @@ $('box-layer').addEventListener('mousedown', (e) => {
   renderBoxes();
 });
 window.addEventListener('mousemove', (e) => {
+  if (refDrag) {
+    const p = canvasPoint(e);
+    if (!p) return;
+    state.refLine = { x1: refDrag.start.x, y1: refDrag.start.y, x2: p.x, y2: p.y, angle: 0, preview: true };
+    renderRefLine();
+    return;
+  }
   if (!drag) return;
   const p = canvasPoint(e);
   if (!p) return;
@@ -255,6 +273,12 @@ window.addEventListener('mousemove', (e) => {
   }
 });
 window.addEventListener('mouseup', () => {
+  if (refDrag) {
+    const line = state.refLine;
+    refDrag = null;
+    if (line) applyRefLine({ x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 });
+    return;
+  }
   if (!drag) return;
   if (drag.kind === 'new' && drag.preview) {
     state.boxes.push({ ...drag.preview, id: state.boxes.length + 1 });
@@ -272,10 +296,72 @@ $('box-angle').addEventListener('input', () => {
   $('angle-v').textContent = b.angle.toFixed(1);
   renderBoxes();
 });
+
+// ---------- 参考线摆正：检测角被手写字带歪时，沿相纸真实的边拉一条线更可靠 ----------
+let refLineMode = false;
+let refDrag = null; // 拉线中：{start:{x,y}（图像像素）}
+
+function setRefLineMode(on) {
+  refLineMode = on;
+  $('refline-btn').classList.toggle('on', on);
+  $('refline-btn').textContent = on ? '✕ 退出拉线' : '📐 沿边拉线摆正';
+  $('canvas-wrap').classList.toggle('picking', on);
+  if (on) $('hint').textContent = '沿相纸的边拖一条线（横边竖边都行）：松手后按这条线摆正选中的框';
+}
+
+/** 参考线显示：按图像坐标两端点画一条线（拉线中为虚线预览，松手后保留） */
+function renderRefLine() {
+  document.querySelectorAll('#box-layer .refline').forEach((el) => el.remove());
+  const line = state.refLine;
+  if (!line || !state.currentFile) return;
+  const img = $('scan-img');
+  const sx = img.clientWidth / state.currentFile.width;
+  const sy = img.clientHeight / state.currentFile.height;
+  const el = document.createElement('div');
+  el.className = 'refline' + (line.preview ? ' preview' : '');
+  el.style.left = line.x1 * sx + 'px';
+  el.style.top = line.y1 * sy + 'px';
+  el.style.width = Math.max(Math.hypot(line.x2 - line.x1, line.y2 - line.y1) * sx, 8) + 'px';
+  el.style.transform = `rotate(${line.angle}deg)`;
+  $('box-layer').appendChild(el);
+}
+
+function applyRefLine(p1, p2) {
+  const b = state.boxes[state.selected];
+  if (!b) return;
+  const dx = p2.x - p1.x, dy = p2.y - p1.y;
+  const minLen = 12 / ($('scan-img').clientWidth / state.currentFile.width); // 显示上 12px，换算回图像像素
+  if (Math.hypot(dx, dy) < minLen) { state.refLine = null; renderRefLine(); return; } // 太短视为误触
+  let deg = Math.atan2(dy, dx) * 180 / Math.PI; // y 向下：正角 = 顺时针倾斜，与检测角同口径
+  // 沿竖边拉的线（|角度|>45°）：换算成「让这条边回到垂直」的摆正角
+  if (deg > 45) deg -= 90;
+  else if (deg < -45) deg += 90;
+  deg = Math.round(deg * 10) / 10;
+  b.angle = Math.max(-45, Math.min(45, deg));
+  state.refLine = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, angle: deg };
+  $('angle-v').textContent = b.angle.toFixed(1);
+  $('box-angle').value = b.angle;
+  $('hint').textContent = `已按参考线摆正：旋转 ${deg}°。可再拉一条线，或用滑杆微调。`;
+  renderBoxes();
+}
+
+$('refline-btn').addEventListener('click', () => setRefLineMode(!refLineMode));
+// 输出旋转（转正倒放/横放的相纸）：改了就刷新裁剪预览
+$('box-rot').addEventListener('change', () => {
+  const b = state.boxes[state.selected];
+  if (!b) return;
+  b.rot = +$('box-rot').value;
+  if (!$('crop-preview').classList.contains('hidden')) cropPreview();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && refLineMode) setRefLineMode(false);
+});
+
 $('box-del').addEventListener('click', () => {
   if (state.selected < 0) return;
   state.boxes.splice(state.selected, 1);
   state.selected = -1;
+  state.refLine = null;
   renderBoxes();
 });
 $('box-redetect').addEventListener('click', redetect);
@@ -328,7 +414,8 @@ async function runBatch() {
       body: JSON.stringify({
         inputDir: state.scanDir, outputDir: $('opt-outdir').value.trim() || null,
         presetId: state.presetId, recursive: $('opt-recursive').checked,
-        skipProcessed: $('opt-skipdone').checked,
+        skipProcessed: $('opt-skipdone').checked, mixed: $('opt-mixed').checked,
+        rotate: +$('opt-rotate').value,
       }),
     });
     pollJob(jobId);

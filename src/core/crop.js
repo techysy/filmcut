@@ -13,9 +13,11 @@ const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.
 
 /**
  * @param {Buffer} buffer 扫描图
- * @param {{cx,cy,w,h,angle}} box 检测/手调后的框（原图像素坐标，angle 为度）
+ * @param {{cx,cy,w,h,angle,rot?}} box 检测/手调后的框（原图像素坐标，angle 为度；
+ *   rot 为输出内容的旋转角 0/90/180/270 —— 扫描时倒放/横放的相纸转正）
  * @param {object} o expandPct: 外扩百分比（补白边余量，默认 1）
  *   outLong: 输出长边像素（固定分辨率，默认 1600）
+ *   rotate: 整批统一输出旋转（0/90/180/270，优先于 box.rot）
  *   format: 'jpeg'|'png'，quality
  * @returns {{buffer, ext, width, height}}
  */
@@ -24,6 +26,10 @@ async function cropPrint(buffer, box, o = {}) {
   const outLong = Math.max(64, Math.min(8000, Math.round(o.outLong ?? 1600)));
   const format = o.format === 'png' ? 'png' : 'jpeg';
   const quality = Math.max(50, Math.min(100, Math.round(o.quality ?? 92)));
+  // 内容旋转：批量走 o.rotate，单张走框上的 rot；归一到 0/90/180/270
+  let rot90 = Math.round(o.rotate ?? box.rot ?? 0) % 360;
+  if (rot90 < 0) rot90 += 360;
+  rot90 = Math.round(rot90 / 90) * 90;
 
   const meta = await sharp(buffer).metadata();
   const W = meta.width, H = meta.height;
@@ -59,10 +65,18 @@ async function cropPrint(buffer, box, o = {}) {
     .rotate(angleDeg, { background: { r: 255, g: 255, b: 255 } })
     .extract({ left, top, width: cw, height: ch })
     .resize(outW, outH, { fit: 'fill' });
-  const out = format === 'png'
-    ? await pipe.png().toBuffer()
-    : await pipe.jpeg({ quality }).toBuffer();
-  return { buffer: out, ext: format === 'png' ? '.png' : '.jpg', width: outW, height: outH };
+
+  if (!rot90) {
+    const out = format === 'png' ? await pipe.png().toBuffer() : await pipe.jpeg({ quality }).toBuffer();
+    return { buffer: out, ext: format === 'png' ? '.png' : '.jpg', width: outW, height: outH };
+  }
+  // 90° 倍数的输出旋转：管线里 rotate 只能调用一次，先 raw 再转（仍然只编码一次）
+  const { data, info } = await pipe.raw().toBuffer({ resolveWithObject: true });
+  const rotated = sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } })
+    .rotate(rot90);
+  const out = format === 'png' ? await rotated.png().toBuffer() : await rotated.jpeg({ quality }).toBuffer();
+  const finalMeta = await sharp(out).metadata();
+  return { buffer: out, ext: format === 'png' ? '.png' : '.jpg', width: finalMeta.width, height: finalMeta.height };
 }
 
 module.exports = { cropPrint, IMAGE_EXTS };

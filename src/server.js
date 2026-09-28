@@ -78,10 +78,11 @@ app.post('/api/detect', express.json(), async (req, res) => {
     if (!p) return res.status(400).json({ error: '文件路径无效' });
     const preset = presets.get(req.body && req.body.presetId);
     const opts = preset ? engineOpts(preset) : {};
+    // 混合扫描（一张纸上多种相纸）时不按方案比例过滤，全部矩形区域都报出来
     const result = await detectPrints(fs.readFileSync(p), {
       tolerance: opts.tolerance,
       minAreaPct: opts.minAreaPct,
-      ratio: opts.ratio,
+      ratio: (req.body && req.body.ignoreRatio) ? null : opts.ratio,
     });
     res.json(result);
   } catch (e) {
@@ -205,6 +206,9 @@ app.post('/api/process', express.json(), async (req, res) => {
     res.json({ jobId, total: files.length });
 
     const opts = engineOpts(preset);
+    // 混合扫描：不按方案比例过滤；输出旋转：整批统一转正（倒放/横放的相纸）
+    const mixed = !!(req.body && req.body.mixed);
+    const rotate = Math.round(Number(req.body && req.body.rotate) || 0);
     await mapPool(files, 2, async (file) => {
       const stat = await fs.promises.stat(file);
       const stem = path.basename(file, extOf(file));
@@ -218,14 +222,14 @@ app.post('/api/process', express.json(), async (req, res) => {
         }
       }
       const buf = await fs.promises.readFile(file);
-      const det = await detectPrints(buf, { tolerance: opts.tolerance, minAreaPct: opts.minAreaPct, ratio: opts.ratio });
+      const det = await detectPrints(buf, { tolerance: opts.tolerance, minAreaPct: opts.minAreaPct, ratio: mixed ? null : opts.ratio });
       if (!det.boxes.length) {
         job.done++; job.current = file; job.failed++;
         job.results.push({ name: path.basename(file), ok: false, error: '未检测到相纸（试试调大白底容差）' });
         return;
       }
       for (let i = 0; i < det.boxes.length; i++) {
-        const r = await cropPrint(buf, det.boxes[i], opts);
+        const r = await cropPrint(buf, det.boxes[i], { ...opts, rotate });
         let name = `${stem}-${i + 1}${r.ext}`;
         while (usedNames.has(name.toLowerCase())) name = `_${name}`;
         usedNames.add(name.toLowerCase());
